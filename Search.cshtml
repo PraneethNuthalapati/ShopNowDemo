@@ -1,0 +1,401 @@
+@using System;
+@using System.Data;
+@using System.Collections.Generic;
+@using System.Data.OleDb;
+@using System.Web.Configuration;
+@using GPIntranet.Utilities;
+
+@{
+    Utilities_ErrorLog _error = new Utilities_ErrorLog();
+    int CurrentPage = 1;
+    string _search = "";
+	 string error_message = "";
+    _search = ((Request["query"] != null) ? Request["query"].ToString().Trim() : "");
+    if (_search == "" && Session["search_val"] != null)
+    {
+        _search = Session["search_val"].ToString().Trim();
+    }
+    if (_search != "")
+    {
+        Session["search_val"] = _search;
+    }
+}
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+    <title>GP Helpdesk Search</title>
+    <script language="JavaScript" type="text/JavaScript">
+<!--
+function MM_swapImgRestore() { //v3.0
+  var i,x,a=document.MM_sr; for(i=0;a&&i<a.length&&(x=a[i])&&x.oSrc;i++) x.src=x.oSrc;
+}
+
+function MM_preloadImages() { //v3.0
+  var d=document; if(d.images){ if(!d.MM_p) d.MM_p=new Array();
+    var i,j=d.MM_p.length,a=MM_preloadImages.arguments; for(i=0; i<a.length; i++)
+    if (a[i].indexOf("#")!=0){ d.MM_p[j]=new Image; d.MM_p[j++].src=a[i];}}
+}
+
+function MM_findObj(n, d) { //v4.01
+  var p,i,x;  if(!d) d=document; if((p=n.indexOf("?"))>0&&parent.frames.length) {
+    d=parent.frames[n.substring(p+1)].document; n=n.substring(0,p);}
+  if(!(x=d[n])&&d.all) x=d.all[n]; for (i=0;!x&&i<d.forms.length;i++) x=d.forms[i][n];
+  for(i=0;!x&&d.layers&&i<d.layers.length;i++) x=MM_findObj(n,d.layers[i].document);
+  if(!x && d.getElementById) x=d.getElementById(n); return x;
+}
+
+function MM_swapImage() { //v3.0
+  var i,j=0,x,a=MM_swapImage.arguments; document.MM_sr=new Array; for(i=0;i<(a.length-2);i+=3)
+   if ((x=MM_findObj(a[i]))!=null){document.MM_sr[j++]=x; if(!x.oSrc) x.oSrc=x.src; x.src=a[i+2];}
+}
+//-->
+    </script>
+</head>
+
+<body>
+    <img src="images/search/right-title-search.gif" alt="search">
+    <form name="search" method="post" >
+        <input name="query" type="text" size="12">
+        <input name="submit" type="image" value="submit" src="images/search/right-go.gif" alt="GO" align="absmiddle">
+    </form>
+    <table width="420" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+            <td height="16" align="left" valign="top">&nbsp;</td>
+        </tr>
+        <tr>
+            <td align="left" valign="top"></td>
+        </tr>
+        <tr>
+            <td height="10" align="left" valign="middle"> <img src="images/search/horizontal-rule-long.gif" width="420" height="1"></td>
+        </tr>
+        <tr>
+            <td height="327" align="left" valign="top">
+                 
+                <table width="400" border="0" cellspacing="0" cellpadding="0">
+                    @{
+                        if (IsPost)
+                        {
+							if (Request["pg"] != null && (_search == null || _search == ""))
+							{
+								error_message = "ERROR - No saved query";
+							}
+                            if (_search != "")
+                            {
+                                OleDbCommand _command;
+                                int intSkip = 0;
+                                int PageSize = 10;
+                                CurrentPage = 0;
+                                int PageCount = 0;
+                                int TotalRecords = 0;
+                                int docCount = 0;
+                                int pageFrom = 0;
+                                int pageTo = 0;
+                                string _disable_nxt = "";
+                                string _disable_prev = "";
+                                DataTable _results = new DataTable();
+
+                                try
+                                {
+                                     string query = @"SELECT TOP 1000 System.ItemDate,System.ItemPathDisplay,System.Title,System.Size,System.Search.AutoSummary,System.ItemName,System.ItemType,System.ItemURL,Rank FROM SystemIndex " +
+                                                           @" WHERE scope ='"+ WebConfigurationManager.AppSettings["SearchFolder"] +"' AND (FREETEXT('" + _search + "') ) " +
+                                                           " AND System.ItemType != 'Directory' AND System.ItemType <> '.jpg' AND System.ItemType <> '.jpeg' AND System.ItemType <> '.png'" +
+                                                           " ORDER BY Rank DESC";
+
+                                using (OleDbConnection conn = new OleDbConnection(@"Provider=Search.CollatorDSO;Extended Properties=""Application=Windows"""))
+                                {
+                                    OleDbCommand cmd = new OleDbCommand(query, conn);
+                                    conn.Open();
+                                    OleDbDataAdapter adapter = new OleDbDataAdapter(cmd);
+                                    adapter.Fill(_results);
+                                    conn.Close();
+                                }
+
+                                if (Request["pg"] != null)
+                                {
+                                    CurrentPage = Convert.ToInt32(Request["pg"].ToString());
+                                }
+
+                                PageSize = 10;
+                                intSkip = (CurrentPage * PageSize);
+                                TotalRecords = _results.Rows.Count;
+                                PageCount = TotalRecords / PageSize;
+
+                                if (TotalRecords % PageSize > 0)
+                                {
+                                    PageCount++;
+                                }
+
+                                pageFrom = (intSkip + 1);
+                                pageTo = (PageSize * (CurrentPage + 1));
+
+                                if (pageTo > TotalRecords)
+                                {
+                                    pageTo = TotalRecords;
+                                }
+                                if(TotalRecords > 0)
+                                {
+                                    if(pageTo >= TotalRecords)
+                                    {
+                                        //PageSize = (TotalRecords - pageTo);
+                                    }
+                                    _results = _results.AsEnumerable().Skip((intSkip)).Take(PageSize).CopyToDataTable();
+                                }
+
+                                int currPageCnt = (TotalRecords > 0) ? (CurrentPage + 1) : 0;
+
+                                if (TotalRecords <= 0)
+                                {
+                                    _disable_nxt = "";
+                                }
+                                if (currPageCnt == PageCount)
+                                {
+                                    _disable_nxt = "none";
+                                }
+                                else if (currPageCnt < PageCount)
+                                {
+                                    _disable_nxt = "";
+                                }
+
+                                if (currPageCnt == 1)
+                                {
+                                    _disable_prev = "none";
+                                }
+                                else if (currPageCnt > 1 && PageCount > currPageCnt)
+                                {
+                                    _disable_prev = "";
+                                }
+                                else if (currPageCnt > 1 && PageCount == currPageCnt)
+                                {
+                                    _disable_prev = "";
+                                }
+
+                                if (TotalRecords > 0)
+                                {
+                                    <tr>
+                                        <td colspan=5 align=center class=SubHeading>Documents @pageFrom to @pageTo of @TotalRecords matching the query "<i>@_search</i>". <br /> <br /></td>
+                                    </tr>
+                                }
+                                <tr>
+                                    @{if ((CurrentPage + 1) > 1 && TotalRecords > 0)
+                                        {
+                                            int current_page = (CurrentPage - 1);
+
+                                            <td align=left>
+                                                <form method="post" id=form1 name=form1>
+                                                    <INPUT TYPE="HIDDEN" NAME="qu" VALUE="@_search" />
+                                                    <INPUT TYPE="HIDDEN" name="pg" VALUE="@current_page" />
+                                                    <input type="image" border="0" style="display:@_disable_prev" name="previous" src="images/search/previous.gif" onMouseOut="MM_swapImgRestore()" onMouseOver="MM_swapImage('previous','','images/search/previous-over.gif',1)" Alt="Previous" />
+                                                </form>
+                                            </td>
+
+                                        }
+                                    }
+
+
+                                    @{if (PageCount > 1 && TotalRecords > 0)
+                                        {
+                                            int nxt_page = (CurrentPage + 1);
+
+                                            <td colspan=4 align=right>
+                                                <form method="post" id=form1 name=form1>
+                                                    <INPUT TYPE="HIDDEN" NAME="qu" VALUE="@_search" />
+                                                    <INPUT TYPE="HIDDEN" name="pg" VALUE="@nxt_page" />
+                                                    <input type="image" border="0" style="display:@_disable_nxt" name="next" src="images/search/next.gif" onMouseOut="MM_swapImgRestore()" onMouseOver="MM_swapImage('Next','','images/search/next-over.gif',1)" Alt="Next" />
+                                                </form>
+                                            </td>
+                                        }
+                                    }
+                                    </tr>
+                                        int RankBase = 0;
+                                        if (_results.Rows.Count > 0)
+                                        {
+                                            docCount = (intSkip);
+                                            foreach (DataRow row in _results.Rows)
+                                            {
+                                                docCount++;
+
+                                                if(docCount == 1)
+												{													
+													RankBase = Convert.ToInt32(row["Rank"].ToString().Trim());
+												}                                                
+												else
+												{
+													 RankBase = 1000;
+												}		
+
+                                                if (RankBase > 1000)
+                                                {
+                                                    RankBase = 1000;
+                                                }
+                                                else if (RankBase < 1)
+                                                {
+                                                    RankBase = 1;
+                                                }
+
+                                                int NormRank = Convert.ToInt32(row["Rank"].ToString().Trim()) / RankBase;
+
+                                                string stars = "";
+
+                                                if (NormRank > 0.80)
+                                                {
+                                                    stars = "images/search/rankbtn5.gif";
+                                                }
+                                                else if (NormRank > 0.60)
+                                                {
+                                                    stars = "images/search/rankbtn4.gif";
+                                                }
+                                                else if (NormRank > 0.40)
+                                                {
+                                                    stars = "images/search/rankbtn3.gif";
+                                                }
+                                                else if (NormRank > .20)
+                                                {
+                                                    stars = "images/search/rankbtn2.gif";
+                                                }
+                                                else
+                                                {
+                                                    stars = "images/search/rankbtn1.gif";
+                                                }
+
+                                                string item_type = row["System.ItemType"].ToString().Trim().Replace(".", "");
+                                                string _filename = (row["System.Title"].ToString().Trim() != "") ? row["System.Title"].ToString().Trim() : row["System.ItemName"].ToString().Trim();
+
+                                        <tr class="RecordTitle">
+                                            <td align="right" valign=top class="RecordTitle">
+                                                @docCount.
+                                            </td>
+                                            <td>
+                                                <b class="RecordTitle">
+                                                    @{                                                        
+                                                        if (item_type == "htm" || item_type == "html")
+                                                        {
+                                                            if (row["System.Title"].ToString().Trim() == "1" || row["System.Title"].ToString().Trim() == "")
+                                                            {
+                                                                <a class="RecordTitle" href="@row["System.ItemURL"].ToString().Replace(""+WebConfigurationManager.AppSettings["SearchFolderUrl"]+"", "")">@row["System.ItemName"].ToString().Trim()</a>
+                                                            }
+                                                            else
+                                                            {
+                                                                <a class="RecordTitle" href="@row["System.ItemURL"].ToString().Replace(""+WebConfigurationManager.AppSettings["SearchFolderUrl"]+"", "")">@_filename</a>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            if (row["System.Title"].ToString().Trim() == "1" || row["System.Title"].ToString().Trim() == "")
+                                                            {
+                                                                <a target="new" class="RecordTitle" href="@row["System.ItemURL"].ToString().Replace(""+WebConfigurationManager.AppSettings["SearchFolderUrl"]+"", "")">@row["System.ItemName"].ToString().Trim()</a>
+                                                            }
+                                                            else
+                                                            {
+                                                                <a target="new" class="RecordTitle" href="@row["System.ItemURL"].ToString().Replace(""+WebConfigurationManager.AppSettings["SearchFolderUrl"]+"", "")">@_filename</a>
+                                                            }
+                                                        }
+                                                    }                                                   
+                                                </b>
+                                            </td>
+                                        </tr>
+                                        <tr colspan="3">
+                                            <td valign=top align=left>
+                                                <IMG SRC="@stars" />
+                                                <br />
+                                            </td>
+                                            <td valign=top colspan="3" align="left">
+                                                @{ 
+                                                //if (row["System.Search.AutoSummary"].ToString() == "8" && row["System.Search.AutoSummary"].ToString() != "" ){ <b><i>Abstract: </i></b>@row["System.Search.AutoSummary"].ToString() 
+                                                 }
+                                                    <p>                                                        
+                                                        @{
+                                                            if (item_type == "htm" || item_type == "html")
+                                                            {
+                                                                <i class="RecordStats"><a href="@row["System.ItemURL"].ToString().Replace(""+WebConfigurationManager.AppSettings["SearchFolderUrl"]+"", "")" class="RecordStats" style="color:blue;">View</a></i>
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="RecordStats"><a href="@row["System.ItemURL"].ToString().Replace(""+WebConfigurationManager.AppSettings["SearchFolderUrl"]+"", "")" class="RecordStats" style="color:blue;" target="new">View</a></i>
+                                                            }
+                                                        }
+                                                        <br />
+                                                        @{
+                                                            if (row["System.Size"].ToString().Trim() == "")
+                                                            {
+                                                                <span>(size and time unknown)</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span>size @row["System.Size"].ToString().Trim() bytes - @row["System.ItemDate"].ToString().Trim() GMT</span>                                                                
+                                                            }
+                                                        }
+                                                    
+                                                </p>
+                                            </td>
+                                        </tr>                                     
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td align=center class=SubHeading><BR>
+                                            No documents matched your search.<br></td>
+                                        </tr>
+                                    }
+								<tr><td><br /></td></tr>
+                                  <tr>									
+                                    @{if ((CurrentPage + 1) > 1 && TotalRecords > 0)
+                                        {
+                                            int current_page = (CurrentPage - 1);
+
+                                            <td align=left>
+                                                <form method="post" id=form1 name=form1>
+                                                    <INPUT TYPE="HIDDEN" NAME="qu" VALUE="@_search" />
+                                                    <INPUT TYPE="HIDDEN" name="pg" VALUE="@current_page" />
+                                                    <input type="image" border="0" style="display:@_disable_prev" name="previous" src="images/search/previous.gif" onMouseOut="MM_swapImgRestore()" onMouseOver="MM_swapImage('previous','','images/search/previous-over.gif',1)" Alt="Previous" />
+                                                </form>
+                                            </td>
+
+                                        }
+                                    }
+
+
+                                    @{if (PageCount > 1 && TotalRecords > 0)
+                                        {
+                                            int nxt_page = (CurrentPage + 1);
+
+                                            <td colspan=4 align=right>
+                                                <form method="post" id=form1 name=form1>
+                                                    <INPUT TYPE="HIDDEN" NAME="qu" VALUE="@_search" />
+                                                    <INPUT TYPE="HIDDEN" name="pg" VALUE="@nxt_page" />
+                                                    <input type="image" border="0" style="display:@_disable_nxt" name="next" src="images/search/next.gif" onMouseOut="MM_swapImgRestore()" onMouseOver="MM_swapImage('Next','','images/search/next-over.gif',1)" Alt="Next" />
+                                                </form>
+                                            </td>
+                                        }
+                                    }
+                                    </tr>
+                                    if (TotalRecords > 0)
+                                    {
+                                        <tr>
+                                            <td align=Center colspan=4><b>Page @currPageCnt of @PageCount</b></td>
+                                        </tr>
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _error.LogError("AP Search: "+ex.ToString());
+                                }                               
+                            }
+                            else
+                            {
+                                if (error_message != "")
+                                {
+                                   <tr><td><P> <I><B>@error_message.</B></I></P></td></tr>
+                                }
+                            }
+                        }
+                    }
+                 </table>
+
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
